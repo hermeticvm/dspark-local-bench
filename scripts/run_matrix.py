@@ -19,6 +19,7 @@ import itertools
 import json
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -110,6 +111,18 @@ def wait_healthy(port: int, proc: subprocess.Popen, timeout_s: float) -> bool:
     return False
 
 
+def warm_up(port: int) -> None:
+    """One throwaway request, so the first measured sample doesn't pay for GPU warm-up."""
+    body = json.dumps({"messages": [{"role": "user", "content": "Write one sentence about the sea."}],
+                       "max_tokens": 32, "temperature": 0}).encode()
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/v1/chat/completions", data=body,
+                                 headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=120).read()
+    except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
+        print(f"    warm-up request failed: {e}")
+
+
 def stop_server(proc: subprocess.Popen) -> None:
     if proc.poll() is None:
         proc.terminate()
@@ -120,13 +133,13 @@ def stop_server(proc: subprocess.Popen) -> None:
             proc.wait()
 
 
-def build_server_cmd(server: Path, config: dict, run: dict, port: int) -> list[str]:
+def build_server_cmd(server: Path, config: dict, run: dict, port: int, machine_args: list[str] = ()) -> list[str]:
     cmd = [
         str(server),
         "-m", str(ROOT / config["target"]),
         "-ngl", "all", "-fa", "on",
         "-c", str(config.get("context", 8192)),
-        "--np", "1",
+        "-np", "1",
         "--port", str(port),
         "--jinja",
     ]
@@ -135,6 +148,7 @@ def build_server_cmd(server: Path, config: dict, run: dict, port: int) -> list[s
     if run["draft"]:
         cmd += ["-md", str(ROOT / run["draft"]), "-ngld", "all"]
     cmd += config.get("server_args", [])
+    cmd += list(machine_args)
     cmd += run["args"]
     return cmd
 
@@ -155,6 +169,9 @@ def main() -> int:
     p.add_argument("--llama-cpp-dir", default=str(ROOT / "llama.cpp"), help="llama.cpp checkout that holds speed_bench.py")
     p.add_argument("--only", help="comma-separated run ids or globs to run, e.g. baseline,dspark-*")
     p.add_argument("--limit", type=int, help="override samples per category (use 1-2 for a smoke test)")
+    p.add_argument("--server-args", default="",
+                   help='extra llama-server args for this machine, e.g. "--device Vulkan0" to keep everything '
+                        "on one GPU when an iGPU is also visible (see llama-server --list-devices)")
     p.add_argument("--port", type=int, default=9931)
     p.add_argument("--load-timeout", type=float, default=600, help="seconds to wait for the model to load")
     p.add_argument("--force", action="store_true", help="re-run runs that already have results")
@@ -164,6 +181,7 @@ def main() -> int:
     config_path = Path(args.config).resolve()
     config = json.loads(config_path.read_text(encoding="utf-8"))
     config_name = config_path.stem
+    machine_args = shlex.split(args.server_args)
     runs = expand_runs(config)
     if args.only:
         patterns = [s.strip() for s in args.only.split(",") if s.strip()]
@@ -194,7 +212,7 @@ def main() -> int:
     if args.dry_run:
         for run in runs:
             print(f"# {run['id']}")
-            print("  server:", subprocess.list2cmdline(build_server_cmd(server, config, run, args.port)))
+            print("  server:", subprocess.list2cmdline(build_server_cmd(server, config, run, args.port, machine_args)))
         print("  bench: ", subprocess.list2cmdline(bench_cmd_base + ["--output", "<raw.json>"]))
         return 0
 
@@ -230,7 +248,7 @@ def main() -> int:
             print(f"[{i}/{len(runs)}] {run['id']}: already done, skipping (--force to redo)")
             continue
 
-        server_cmd = build_server_cmd(server, config, run, args.port)
+        server_cmd = build_server_cmd(server, config, run, args.port, machine_args)
         log_path = raw_dir / f"{run['id']}.server.log"
         print(f"[{i}/{len(runs)}] {run['id']}: starting server")
         with open(log_path, "w", encoding="utf-8", errors="replace") as log:
@@ -242,6 +260,7 @@ def main() -> int:
                                                  "error": "server failed to start"}
                     out_path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
                     continue
+                warm_up(args.port)
                 t0 = time.monotonic()
                 bench_out = subprocess.run(bench_cmd_base + ["--output", str(raw_path)])
                 elapsed = time.monotonic() - t0

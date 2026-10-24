@@ -34,15 +34,21 @@ git clone https://github.com/juraj-jumic/dspark-local-bench; cd dspark-local-ben
 .venv\Scripts\Activate.ps1
 python scripts\fetch_models.py configs\qwen3-8b.json
 
+# which GPUs llama.cpp sees; if an iGPU shows up too, pin the run to the discrete card with --device
+bin\vulkan\llama-server.exe --list-devices
+
 # smoke test, about 2 minutes
 python scripts\run_matrix.py --config configs\qwen3-8b.json --backend vulkan --machine rx7900gre-win11 `
-    --gpu "AMD Radeon RX 7900 GRE 16GB" --only baseline,dspark-n7-p0 --limit 1
+    --gpu "AMD Radeon RX 7900 GRE 16GB" --server-args "--device Vulkan0" --only baseline,dspark-n7-p0 --limit 1
 
 # full matrix, about 1.5-2 h; finished runs are skipped if you stop and restart
 python scripts\run_matrix.py --config configs\qwen3-8b.json --backend vulkan --machine rx7900gre-win11 `
-    --gpu "AMD Radeon RX 7900 GRE 16GB"
+    --gpu "AMD Radeon RX 7900 GRE 16GB" --server-args "--device Vulkan0"
 python scripts\summarize.py --write
 ```
+
+By default llama.cpp splits a model across every GPU it can see, and a slow integrated GPU in that split
+spoils the numbers. The draft model follows `--device` unless you also pass `--spec-draft-device`.
 
 ## Quickstart: Linux / macOS
 
