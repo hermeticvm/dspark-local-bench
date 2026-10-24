@@ -1,0 +1,14 @@
+# downloaded tools, sources and models
+bin/
+models/
+llama.cpp/
+*.gguf
+*.zip
+
+# raw per-request output and server logs
+runs/
+
+# python
+.venv/
+__pycache__/
+*.pyc

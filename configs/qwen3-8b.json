@@ -1,0 +1,48 @@
+{
+  "description": "Qwen3-8B Q8_0: every llama.cpp speculative method, plus a DSpark n-max x p-min sweep. About 1.5-2 h on a ~100 t/s GPU.",
+  "target": "models/Qwen3-8B-Q8_0.gguf",
+  "context": 8192,
+  "chat_template_kwargs": {"enable_thinking": false},
+  "bench": {
+    "bench": "qualitative",
+    "categories": "coding,math,writing,qa",
+    "limit": 8,
+    "osl": 512,
+    "extra_inputs": {"temperature": 0}
+  },
+  "downloads": [
+    {"repo": "ggml-org/Qwen3-8B-GGUF", "file": "Qwen3-8B-Q8_0.gguf"},
+    {"repo": "ggml-org/Qwen3-8B-GGUF", "file": "dspark-Qwen3-8B-Q8_0.gguf"},
+    {"repo": "ggml-org/Qwen3-8B-GGUF", "file": "dspark-Qwen3-8B-BF16.gguf"},
+    {"repo": "ggml-org/Qwen3-8B-GGUF", "file": "dflash-Qwen3-8B-Q8_0.gguf"},
+    {"repo": "Qwen/Qwen3-0.6B-GGUF", "file": "Qwen3-0.6B-Q8_0.gguf"}
+  ],
+  "runs": [
+    {"id": "baseline"},
+    {"id": "ngram-mod", "args": ["--spec-type", "ngram-mod"]},
+    {
+      "id": "draft-simple-n{n}",
+      "draft": "models/Qwen3-0.6B-Q8_0.gguf",
+      "args": ["--spec-type", "draft-simple", "--spec-draft-n-max", "{n}"],
+      "sweep": {"n": [3, 5]}
+    },
+    {
+      "id": "dflash-n{n}",
+      "draft": "models/dflash-Qwen3-8B-Q8_0.gguf",
+      "args": ["--spec-type", "draft-dflash", "--spec-draft-n-max", "{n}"],
+      "sweep": {"n": [4, 7]}
+    },
+    {
+      "id": "dspark-n{n}-p{p}",
+      "draft": "models/dspark-Qwen3-8B-Q8_0.gguf",
+      "args": ["--spec-type", "draft-dspark", "--spec-draft-n-max", "{n}", "--spec-draft-p-min", "{p}"],
+      "sweep": {"n": [2, 3, 4, 5, 7], "p": [0, 0.3, 0.5, 0.7, 0.9]}
+    },
+    {
+      "id": "dspark-bf16-n{n}-p0",
+      "draft": "models/dspark-Qwen3-8B-BF16.gguf",
+      "args": ["--spec-type", "draft-dspark", "--spec-draft-n-max", "{n}", "--spec-draft-p-min", "0"],
+      "sweep": {"n": [4, 7]}
+    }
+  ]
+}

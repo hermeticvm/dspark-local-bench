@@ -1,0 +1,26 @@
+{
+  "description": "Qwen3-8B Q8_0 with fixed 8k-token prompts: does the DSpark gain survive long context, and how much prompt speed does the draft cost?",
+  "target": "models/Qwen3-8B-Q8_0.gguf",
+  "context": 12288,
+  "chat_template_kwargs": {"enable_thinking": false},
+  "bench": {
+    "bench": "throughput_8k",
+    "categories": "all",
+    "limit": 4,
+    "osl": 512,
+    "extra_inputs": {"temperature": 0}
+  },
+  "downloads": [
+    {"repo": "ggml-org/Qwen3-8B-GGUF", "file": "Qwen3-8B-Q8_0.gguf"},
+    {"repo": "ggml-org/Qwen3-8B-GGUF", "file": "dspark-Qwen3-8B-Q8_0.gguf"}
+  ],
+  "runs": [
+    {"id": "baseline"},
+    {
+      "id": "dspark-n{n}-p0",
+      "draft": "models/dspark-Qwen3-8B-Q8_0.gguf",
+      "args": ["--spec-type", "draft-dspark", "--spec-draft-n-max", "{n}", "--spec-draft-p-min", "0"],
+      "sweep": {"n": [4, 7]}
+    }
+  ]
+}
