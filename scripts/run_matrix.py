@@ -22,6 +22,7 @@ import platform
 import re
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import sysconfig
@@ -111,6 +112,21 @@ def detect_gpu() -> str:
     return "unknown"
 
 
+def port_in_use(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def start_server(cmd: list[str], env: dict, port: int, log) -> subprocess.Popen:
+    """Start llama-server, refusing if the port is taken: the health check would
+    otherwise reach whatever already listens there and we would benchmark that."""
+    if port_in_use(port):
+        sys.exit(f"port {port} is already in use (a leftover llama-server or another app?); "
+                 f"stop it or pass --port")
+    return subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env)
+
+
 def wait_healthy(port: int, proc: subprocess.Popen, timeout_s: float) -> bool:
     url = f"http://127.0.0.1:{port}/health"
     deadline = time.monotonic() + timeout_s
@@ -127,14 +143,20 @@ def wait_healthy(port: int, proc: subprocess.Popen, timeout_s: float) -> bool:
     return False
 
 
-def warm_up(port: int) -> None:
-    """One throwaway request, so the first measured sample doesn't pay for GPU warm-up."""
-    body = json.dumps({"messages": [{"role": "user", "content": "Write one sentence about the sea."}],
-                       "max_tokens": 32, "temperature": 0}).encode()
+def chat(port: int, prompt: str, max_tokens: int, timeout: float = 600) -> str:
+    """One greedy chat completion; returns the generated text."""
+    body = json.dumps({"messages": [{"role": "user", "content": prompt}],
+                       "max_tokens": max_tokens, "temperature": 0}).encode()
     req = urllib.request.Request(f"http://127.0.0.1:{port}/v1/chat/completions", data=body,
                                  headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.load(resp)["choices"][0]["message"].get("content") or ""
+
+
+def warm_up(port: int) -> None:
+    """One throwaway request, so the first measured sample doesn't pay for GPU warm-up."""
     try:
-        urllib.request.urlopen(req, timeout=120).read()
+        chat(port, "Write one sentence about the sea.", 32, timeout=120)
     except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
         print(f"    warm-up request failed: {e}")
 
@@ -273,7 +295,7 @@ def main() -> int:
         log_path = raw_dir / f"{run['id']}.server.log"
         print(f"[{i}/{len(runs)}] {run['id']}: starting server")
         with open(log_path, "w", encoding="utf-8", errors="replace") as log:
-            proc = subprocess.Popen(server_cmd, stdout=log, stderr=subprocess.STDOUT, env=env)
+            proc = start_server(server_cmd, env, args.port, log)
             try:
                 if not wait_healthy(args.port, proc, args.load_timeout):
                     print(f"    server failed to start, see {log_path}")

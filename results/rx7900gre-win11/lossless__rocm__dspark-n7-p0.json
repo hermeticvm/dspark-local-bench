@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "machine": "rx7900gre-win11",
+    "backend": "rocm",
+    "llama_cpp_version": "0.7.0-dev (build 11865, commit 9a0fde996)",
+    "config": "qwen3-8b",
+    "target": "models/Qwen3-8B-Q8_0.gguf",
+    "run": "dspark-n7-p0",
+    "max_tokens": 256,
+    "limit": 4,
+    "os": "Windows-11-10.0.26200-SP0",
+    "updated": "2026-10-25T16:14:34+00:00"
+  },
+  "control": {
+    "identical": 16,
+    "total": 16,
+    "differences": []
+  },
+  "speculative": {
+    "identical": 5,
+    "total": 16,
+    "differences": [
+      {
+        "id": "135c7fe91faa48fd83ca5eac94c09f00",
+        "category": "coding",
+        "first_diff_char": 831,
+        "first_diff_fraction": 0.87,
+        "len_ref": 955,
+        "len": 973
+      },
+      {
+        "id": "47534ec0377943708c55cb1bfad6c83d",
+        "category": "math",
+        "first_diff_char": 40,
+        "first_diff_fraction": 0.04,
+        "len_ref": 1005,
+        "len": 1175
+      },
+      {
+        "id": "f73440d5701f4feeaeffcacf282d5607",
+        "category": "math",
+        "first_diff_char": 794,
+        "first_diff_fraction": 0.68,
+        "len_ref": 1168,
+        "len": 1169
+      },
+      {
+        "id": "10983429e00549a3bf63b7ea733195af",
+        "category": "math",
+        "first_diff_char": 794,
+        "first_diff_fraction": 0.68,
+        "len_ref": 1168,
+        "len": 1179
+      },
+      {
+        "id": "90180668a772489fbcb5a2157c181713",
+        "category": "math",
+        "first_diff_char": 794,
+        "first_diff_fraction": 0.68,
+        "len_ref": 1168,
+        "len": 1179
+      },
+      {
+        "id": "a3ac2c931db84417a211b7d8756b5ff1",
+        "category": "qa",
+        "first_diff_char": 11,
+        "first_diff_fraction": 0.026,
+        "len_ref": 418,
+        "len": 425
+      },
+      {
+        "id": "2caa2289a2574756bb51967df812c420",
+        "category": "qa",
+        "first_diff_char": 254,
+        "first_diff_fraction": 0.847,
+        "len_ref": 300,
+        "len": 306
+      },
+      {
+        "id": "88ef499cf4f744da8f11a5c0bd2d5076",
+        "category": "qa",
+        "first_diff_char": 295,
+        "first_diff_fraction": 0.598,
+        "len_ref": 493,
+        "len": 590
+      },
+      {
+        "id": "62a4c1a709c04f9da17f16263d3d997f",
+        "category": "qa",
+        "first_diff_char": 257,
+        "first_diff_fraction": 0.34,
+        "len_ref": 755,
+        "len": 651
+      },
+      {
+        "id": "5beba2e064e244a49a78aa83a0ae23e3",
+        "category": "writing",
+        "first_diff_char": 99,
+        "first_diff_fraction": 0.258,
+        "len_ref": 384,
+        "len": 411
+      },
+      {
+        "id": "5b30259fc26e4f598e76f752d7f21177",
+        "category": "writing",
+        "first_diff_char": 60,
+        "first_diff_fraction": 0.054,
+        "len_ref": 1113,
+        "len": 1098
+      }
+    ]
+  }
+}

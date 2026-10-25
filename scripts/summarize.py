@@ -102,7 +102,9 @@ def main() -> int:
     args = p.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")  # tables use × and ·; Windows consoles may default to cp1252
 
-    paths = [Path(x) for x in args.paths] or sorted((ROOT / "results").rglob("*.json"))
+    # lossless__*.json are check_lossless.py output, not speed tables
+    paths = [Path(x) for x in args.paths] or sorted(
+        p for p in (ROOT / "results").rglob("*.json") if not p.name.startswith("lossless__"))
     if not paths:
         print("no results yet: run scripts/run_matrix.py first", file=sys.stderr)
         return 1

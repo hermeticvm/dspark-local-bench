@@ -65,6 +65,13 @@ The published speedups come from servers and high-end NVIDIA cards. This project
 - **Keep the drafter at Q8_0.** The BF16 drafter was slower (1.55× vs 1.72× at 4 tokens) and no more accurate.
 - **Prompt processing barely suffers:** about 8–9% slower with the drafter loaded, on both backends.
 - **The gain depends on the task:** coding gains the most (2.3× on Vulkan, 3.2× on ROCm), Q&A the least (1.5–1.6×).
+- **Same quality, but not identical text.** We answered 16 prompts with and without speculation
+  ([`check_lossless.py`](scripts/check_lossless.py)). Plain decoding reproduces itself exactly (16/16), but
+  with DSpark only 6/16 answers (Vulkan) and 5/16 (ROCm) are identical. The rest switch to an equally fluent
+  word at some point ("TV series" → "TV show") and continue from there. **This isn't DSpark-specific:** a
+  classic draft model diverges just as often (5/16), often at the very same words. The cause is that llama.cpp
+  checks drafted tokens in batches, which rounds slightly differently than decoding one token at a time and
+  flips near-tied words. This matters only if you need bit-exact reproducible output.
 
 <p align="center">
   <img src="assets/speedup-rocm.svg" width="90%" alt="Decode speedup per method on ROCm" />
@@ -93,8 +100,10 @@ Full tables, with per-category speedups and acceptance rates: [Vulkan](results/r
 
 ## 3. Quick Start
 
-You need Python 3.10+, git and about 15 GB of disk. The setup script downloads a prebuilt llama.cpp, so
-there's nothing to compile.
+You need Python 3.10+, git and about 15 GB of disk. The setup script downloads a prebuilt llama.cpp,
+verifies its checksum, and installs pinned Python packages into a project-local `.venv`, so there's nothing
+to compile and nothing installed system-wide. The main config needs a GPU with **12 GB or more**; for 8 GB
+cards, use `configs/qwen3-8b-q4.json` instead.
 
 **1. Set up** for your system and GPU:
 
@@ -116,6 +125,27 @@ cd dspark-local-bench
 python scripts/fetch_models.py configs/qwen3-8b.json
 ```
 
+> [!TIP]
+> **Windows says "running scripts is disabled on this system"?** That's Windows' default for PowerShell
+> scripts. Allow them for your user account once, then run the setup again:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+<details>
+<summary><b>Linux requirements</b></summary>
+
+- The prebuilt binaries are built on **Ubuntu 24.04**, so they need a system at least that new: Ubuntu 24.04+,
+  Debian 13+, Fedora 40+ or similar. On older systems (Ubuntu 22.04, Debian 12) they fail to start with a
+  `GLIBC` error; [build llama.cpp yourself](https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md)
+  and pass `--server path/to/llama-server`.
+- The binaries need OpenMP and, for Vulkan, the Vulkan loader and your GPU's driver:
+  `sudo apt install libgomp1 libvulkan1 mesa-vulkan-drivers` on Ubuntu (NVIDIA: the proprietary driver
+  includes the Vulkan part). Without `libgomp1`, `llama-server` fails with `libgomp.so.1: cannot open shared object file`.
+- Python virtual environments: `sudo apt install python3-venv` on Ubuntu/Debian (the setup checks this first).
+- **Don't benchmark inside WSL.** Its GPU access goes through a translation layer and would understate your
+  card. On Windows, use `setup_windows.ps1`.
+
+</details>
+
 **2. Pick your GPU.** The setup prints the devices llama.cpp sees, for example:
 
 ```text
@@ -128,7 +158,9 @@ Vulkan1: AMD Radeon(TM) Graphics          <- integrated GPU, don't use
 > split the model across both. **The numbering can change between backends:** on the machine above, the
 > same card is `Vulkan0` but `ROCm1`. On a Mac, or with a single GPU, leave `--server-args` out.
 
-**3. Run** a two-minute smoke test, then the full matrix (about 2 hours; finished settings are skipped if you restart):
+**3. Run** a two-minute smoke test, then the full matrix (about 2 hours; finished settings are skipped if you
+restart). Close anything else that uses the GPU first (Ollama or LM Studio with a model loaded, games, video),
+and plug laptops in:
 
 ```bash
 python scripts/run_matrix.py --config configs/qwen3-8b.json --backend vulkan --machine my-gpu --server-args "--device Vulkan0" --only baseline,dspark-n7-p0 --limit 1
@@ -179,12 +211,14 @@ Every setting is one JSON entry in [configs/](configs/), so adding a model or a 
 The goal is a table that answers *"does DSpark help on my GPU?"* for as many cards as possible.
 
 1. Run a config (see [Quick Start](#3-quick-start)) with a short `--machine` label such as `rtx3060-win11`.
-2. Commit `results/<machine>/` and open a pull request. Mention anything unusual: power limits, a laptop, other load on the GPU.
+2. Run `python scripts/validate_results.py`. It checks your files and flags personal details such as full paths.
+3. Commit `results/<machine>/` and open a pull request. Mention anything unusual: power limits, a laptop, other load on the GPU.
 
 > [!IMPORTANT]
 > Only commit `results/`. The raw per-request data and server logs in `runs/` stay local; they're gitignored.
 
-NVIDIA and Apple Silicon results are especially welcome. The first results are from AMD.
+NVIDIA and Apple Silicon results are especially welcome. The first results are from AMD. Details, and an
+issue form if you'd rather not open a pull request: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 6. Ecosystem Status
 
@@ -202,4 +236,5 @@ their model cards). SPEED-Bench prompts are covered by NVIDIA's evaluation datas
 redistributes them and publishes only aggregate timings.
 
 This is an independent project, not affiliated with DeepSeek, ggml-org or NVIDIA. Questions and results go to
-[issues](https://github.com/juraj-jumic/dspark-local-bench/issues).
+[issues](https://github.com/juraj-jumic/dspark-local-bench/issues). Security problems go to a private report:
+see [SECURITY.md](SECURITY.md), which also lists exactly what the scripts download and run.

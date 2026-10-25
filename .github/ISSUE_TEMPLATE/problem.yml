@@ -1,0 +1,28 @@
+name: Something doesn't work
+description: Setup fails, a run errors out, or the numbers look wrong.
+labels: [bug]
+body:
+  - type: input
+    id: system
+    attributes:
+      label: OS, GPU and backend
+      placeholder: "Ubuntu 24.04, AMD RX 7800 XT, Vulkan"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: The command you ran
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: What happened
+      description: >-
+        The error, plus the end of the server log from runs/<machine>/<backend>/<config>/<run>.server.log if a
+        server failed to start. Remove personal details such as your user name in paths first.
+      render: text
+    validations:
+      required: true

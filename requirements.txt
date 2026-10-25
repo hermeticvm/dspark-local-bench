@@ -1,0 +1,6 @@
+# Pinned so every machine runs the same benchmark client. All support Python 3.10+.
+# (These are the deps of llama.cpp's tools/server/bench/speed-bench, plus huggingface_hub for fetch_models.py.)
+datasets==5.1.0
+huggingface_hub==2.3.0
+requests==2.34.2
+tqdm==4.70.1

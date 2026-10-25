@@ -20,11 +20,21 @@ if ($Backend -eq 'cuda') {
 if (-not $assets) { throw "no Windows $Backend build found in release $Tag" }
 
 $binDir = Join-Path $root "bin\$Backend"
+# Windows locks DLLs that are in use, so unpacking over a running server fails halfway
+$running = Get-Process llama-server -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$binDir\*" }
+if ($running) { throw "llama-server from $binDir is running (a benchmark?); stop it first, then rerun setup" }
 New-Item -ItemType Directory -Force $binDir | Out-Null
 foreach ($a in $assets) {
     $zip = Join-Path $env:TEMP $a.name
     Write-Host "download $($a.name)"
     Invoke-WebRequest $a.browser_download_url -OutFile $zip
+    # GitHub publishes a SHA-256 per release asset; refuse to unpack anything that doesn't match
+    $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+    if ($a.digest -and $a.digest -ne "sha256:$actual") {
+        Remove-Item $zip
+        throw "checksum mismatch for $($a.name): expected $($a.digest), got sha256:$actual"
+    }
+    if (-not $a.digest) { Write-Warning "no published checksum for $($a.name); not verified" }
     Expand-Archive $zip $binDir -Force
     Remove-Item $zip
 }
@@ -39,7 +49,7 @@ if (-not (Test-Path $src)) {
 
 $venv = Join-Path $root '.venv'
 if (-not (Test-Path $venv)) { python -m venv $venv }
-& "$venv\Scripts\python.exe" -m pip install -q -r "$src\tools\server\bench\speed-bench\requirements.txt" huggingface_hub
+& "$venv\Scripts\python.exe" -m pip install -q -r "$root\requirements.txt"
 
 if ($Backend -eq 'rocm') {
     # The ROCm zip bundles only the HIP runtime; ggml-hip.dll also needs hipBLAS/rocBLAS on PATH.

@@ -1,0 +1,36 @@
+name: Share results (without a pull request)
+description: Post your numbers here if you'd rather not open a pull request.
+labels: [results]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for measuring! A pull request with your `results/<machine>/` folder is best, since it puts
+        your GPU in the tables. If that's not for you, paste the output of `python scripts/summarize.py` below.
+        Please don't include personal details: no full paths, user names or e-mail addresses.
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU and VRAM
+      placeholder: "NVIDIA RTX 3060 12 GB"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: OS and backend
+      placeholder: "Windows 11, CUDA"
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Output of scripts/summarize.py
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything unusual?
+      description: Power limit, laptop, other programs using the GPU, a different config...
