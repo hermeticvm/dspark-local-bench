@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="200" viewBox="0 0 880 200" role="img" aria-labelledby="t">
+<title id="t">dspark-local-bench: speculative decoding benchmarks for one user on one consumer GPU</title>
+<style>
+  text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .ink { fill: #0b0b0b; } .ink2 { fill: #52514e; }
+  .tok { fill: #918f88; } .draft { fill: #2a78d6; } .draft-soft { fill: #2a78d6; opacity: .45; }
+  @media (prefers-color-scheme: dark) {
+    .ink { fill: #f0efec; } .ink2 { fill: #c3c2b7; }
+    .tok { fill: #6b6a64; } .draft { fill: #3987e5; } .draft-soft { fill: #3987e5; }
+  }
+</style>
+<!-- token row: tokens decoded one at a time, then a drafted block verified in one step -->
+<g transform="translate(190 28)">
+  <rect x="0"   y="0" width="40" height="14" rx="4" class="tok"/>
+  <rect x="46"  y="0" width="40" height="14" rx="4" class="tok"/>
+  <rect x="92"  y="0" width="40" height="14" rx="4" class="tok"/>
+  <rect x="150" y="0" width="40" height="14" rx="4" class="draft"/>
+  <rect x="196" y="0" width="40" height="14" rx="4" class="draft"/>
+  <rect x="242" y="0" width="40" height="14" rx="4" class="draft"/>
+  <rect x="288" y="0" width="40" height="14" rx="4" class="draft"/>
+  <rect x="334" y="0" width="40" height="14" rx="4" class="draft"/>
+  <rect x="380" y="0" width="40" height="14" rx="4" class="draft-soft"/>
+  <rect x="426" y="0" width="40" height="14" rx="4" class="draft-soft"/>
+</g>
+<text x="440" y="118" text-anchor="middle" class="ink" font-size="56" font-weight="700" letter-spacing="-1">dspark-local-bench</text>
+<text x="440" y="160" text-anchor="middle" class="ink2" font-size="19">Speculative decoding, measured for one user on one consumer GPU</text>
+</svg>

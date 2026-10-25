@@ -169,6 +169,9 @@ def main() -> int:
     p.add_argument("--llama-cpp-dir", default=str(ROOT / "llama.cpp"), help="llama.cpp checkout that holds speed_bench.py")
     p.add_argument("--only", help="comma-separated run ids or globs to run, e.g. baseline,dspark-*")
     p.add_argument("--limit", type=int, help="override samples per category (use 1-2 for a smoke test)")
+    p.add_argument("--osl", type=int, help="override output tokens per request")
+    p.add_argument("--name", help="results name (default: the config's file name); use e.g. qwen3-8b-screen "
+                                  "to keep a quick screening pass apart from the full results")
     p.add_argument("--server-args", default="",
                    help='extra llama-server args for this machine, e.g. "--device Vulkan0" to keep everything '
                         "on one GPU when an iGPU is also visible (see llama-server --list-devices)")
@@ -180,7 +183,7 @@ def main() -> int:
 
     config_path = Path(args.config).resolve()
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    config_name = config_path.stem
+    config_name = args.name or config_path.stem
     machine_args = shlex.split(args.server_args)
     runs = expand_runs(config)
     if args.only:
@@ -197,12 +200,13 @@ def main() -> int:
     speed_bench = Path(args.llama_cpp_dir) / "tools" / "server" / "bench" / "speed-bench" / "speed_bench.py"
     bench = config["bench"]
     limit = args.limit if args.limit is not None else bench.get("limit")
+    osl = args.osl or bench.get("osl", 512)
     bench_cmd_base = [
         sys.executable, str(speed_bench),
         "--url", f"127.0.0.1:{args.port}",
         "--bench", bench.get("bench", "qualitative"),
         "--category", bench.get("categories", "all"),
-        "--osl", str(bench.get("osl", 512)),
+        "--osl", str(osl),
         "--extra-inputs", json.dumps(bench.get("extra_inputs", {"temperature": 0})),
         "--concurrency", "1",
     ]
@@ -237,7 +241,7 @@ def main() -> int:
         "config": config_name,
         "target": config["target"],
         "context": config.get("context", 8192),
-        "bench": {**bench, "limit": limit},
+        "bench": {**bench, "limit": limit, "osl": osl},
         "updated": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
     }
 
