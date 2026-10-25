@@ -17,12 +17,14 @@ import datetime as dt
 import fnmatch
 import itertools
 import json
+import os
 import platform
 import re
 import shlex
 import shutil
 import subprocess
 import sys
+import sysconfig
 import time
 import urllib.error
 import urllib.request
@@ -64,9 +66,23 @@ def find_server(backend: str) -> Path | None:
     return Path(on_path) if on_path else None
 
 
-def server_version(server: Path) -> str:
+def server_env(backend: str) -> dict:
+    """Environment for llama-server.
+
+    llama.cpp's Windows ROCm build bundles only the HIP runtime; hipBLAS/rocBLAS must be on PATH.
+    setup_windows.ps1 installs them into the venv as AMD's rocm[libraries] wheels, so add those dirs.
+    """
+    env = dict(os.environ)
+    if backend.startswith("rocm"):
+        site = Path(sysconfig.get_paths()["purelib"])
+        dirs = [site / "_rocm_sdk_libraries" / "bin", site / "_rocm_sdk_core" / "bin"]
+        env["PATH"] = os.pathsep.join([str(d) for d in dirs if d.is_dir()] + [env.get("PATH", "")])
+    return env
+
+
+def server_version(server: Path, env: dict) -> str:
     try:
-        out = subprocess.run([str(server), "--version"], capture_output=True, text=True, timeout=60)
+        out = subprocess.run([str(server), "--version"], capture_output=True, text=True, timeout=60, env=env)
     except (OSError, subprocess.TimeoutExpired) as e:
         return f"unknown ({e})"
     text = out.stdout + out.stderr
@@ -226,6 +242,7 @@ def main() -> int:
     if missing:
         sys.exit("missing model files (run scripts/fetch_models.py):\n  " + "\n  ".join(sorted(set(missing))))
 
+    env = server_env(args.backend)
     raw_dir = ROOT / "runs" / args.machine / args.backend / config_name
     raw_dir.mkdir(parents=True, exist_ok=True)
     out_path = ROOT / "results" / args.machine / f"{config_name}__{args.backend}.json"
@@ -235,7 +252,7 @@ def main() -> int:
         "machine": args.machine,
         "backend": args.backend,
         "gpu": args.gpu or detect_gpu(),
-        "llama_cpp_version": server_version(server),
+        "llama_cpp_version": server_version(server, env),
         "os": platform.platform(),
         "python": platform.python_version(),
         "config": config_name,
@@ -256,7 +273,7 @@ def main() -> int:
         log_path = raw_dir / f"{run['id']}.server.log"
         print(f"[{i}/{len(runs)}] {run['id']}: starting server")
         with open(log_path, "w", encoding="utf-8", errors="replace") as log:
-            proc = subprocess.Popen(server_cmd, stdout=log, stderr=subprocess.STDOUT)
+            proc = subprocess.Popen(server_cmd, stdout=log, stderr=subprocess.STDOUT, env=env)
             try:
                 if not wait_healthy(args.port, proc, args.load_timeout):
                     print(f"    server failed to start, see {log_path}")

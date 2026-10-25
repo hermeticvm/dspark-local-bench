@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="341" viewBox="0 0 760 341" role="img" aria-labelledby="t d">
+<style>
+  .surface { fill: none; }
+  .ink { fill: #0b0b0b; } .ink2 { fill: #52514e; } .muted { fill: #6f6d68; }
+  .grid { stroke: #e1e0d9; } .axis { stroke: #c3c2b7; }
+  .bar { fill: #918f88; } .bar-hi { fill: #2a78d6; }
+  @media (prefers-color-scheme: dark) {
+    .ink { fill: #f0efec; } .ink2 { fill: #c3c2b7; } .muted { fill: #9a9890; }
+    .grid { stroke: #2c2c2a; } .axis { stroke: #383835; }
+    .bar { fill: #6b6a64; } .bar-hi { fill: #3987e5; }
+  }
+  text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .num { font-variant-numeric: tabular-nums; }
+</style>
+<title id="t">Decode speed vs. no speculation</title>
+<desc id="d">DSpark (drafts 7 tokens): 2.25x, 133 tokens/s; DFlash (drafts 4 tokens): 1.86x, 110 tokens/s; Small draft model (Qwen3-0.6B · drafts 3 tokens): 1.29x, 76 tokens/s; No speculation (plain decoding): 1.00x, 59 tokens/s</desc>
+<text x="0" y="28" class="ink" font-size="20" font-weight="600">Decode speed vs. no speculation</text>
+<text x="0" y="52" class="ink2" font-size="13">Qwen3-8B-Q8_0 · AMD Radeon RX 7900 GRE 16GB · ROCm · llama.cpp b11865 · one user, greedy</text>
+<line x1="250.0" y1="84" x2="250.0" y2="279.0" class="grid" stroke-width="1"/>
+<text x="250.0" y="297.0" class="muted num" font-size="12" text-anchor="middle">0×</text>
+<line x1="326.0" y1="84" x2="326.0" y2="279.0" class="grid" stroke-width="1"/>
+<text x="326.0" y="297.0" class="muted num" font-size="12" text-anchor="middle">0.5×</text>
+<line x1="402.0" y1="84" x2="402.0" y2="279.0" class="grid" stroke-width="1"/>
+<text x="402.0" y="297.0" class="muted num" font-size="12" text-anchor="middle">1×</text>
+<line x1="478.0" y1="84" x2="478.0" y2="279.0" class="grid" stroke-width="1"/>
+<text x="478.0" y="297.0" class="muted num" font-size="12" text-anchor="middle">1.5×</text>
+<line x1="554.0" y1="84" x2="554.0" y2="279.0" class="grid" stroke-width="1"/>
+<text x="554.0" y="297.0" class="muted num" font-size="12" text-anchor="middle">2×</text>
+<line x1="630.0" y1="84" x2="630.0" y2="279.0" class="grid" stroke-width="1"/>
+<text x="630.0" y="297.0" class="muted num" font-size="12" text-anchor="middle">2.5×</text>
+<line x1="250" y1="84" x2="250" y2="279.0" class="axis" stroke-width="1"/>
+<text x="234" y="102" class="ink" font-size="14" font-weight="600" text-anchor="end">DSpark</text>
+<text x="234" y="119" class="muted" font-size="12" text-anchor="end">drafts 7 tokens</text>
+<path d="M250.0,92.0 H587.8 Q591.8,92.0 591.8,96.0 V110.0 Q591.8,114.0 587.8,114.0 H250.0 Z" class="bar-hi"/>
+<text x="599.8" y="108" class="num" font-size="14"><tspan class="ink" font-weight="600">2.25×</tspan><tspan class="muted" font-size="12" dx="6">133 tok/s</tspan></text>
+<text x="234" y="150" class="ink" font-size="14" font-weight="600" text-anchor="end">DFlash</text>
+<text x="234" y="167" class="muted" font-size="12" text-anchor="end">drafts 4 tokens</text>
+<path d="M250.0,140.0 H529.0 Q533.0,140.0 533.0,144.0 V158.0 Q533.0,162.0 529.0,162.0 H250.0 Z" class="bar"/>
+<text x="541.0" y="156" class="num" font-size="14"><tspan class="ink" font-weight="600">1.86×</tspan><tspan class="muted" font-size="12" dx="6">110 tok/s</tspan></text>
+<text x="234" y="198" class="ink" font-size="14" font-weight="600" text-anchor="end">Small draft model</text>
+<text x="234" y="215" class="muted" font-size="12" text-anchor="end">Qwen3-0.6B · drafts 3 tokens</text>
+<path d="M250.0,188.0 H441.8 Q445.8,188.0 445.8,192.0 V206.0 Q445.8,210.0 441.8,210.0 H250.0 Z" class="bar"/>
+<text x="453.8" y="204" class="num" font-size="14"><tspan class="ink" font-weight="600">1.29×</tspan><tspan class="muted" font-size="12" dx="6">76 tok/s</tspan></text>
+<text x="234" y="246" class="ink" font-size="14" font-weight="600" text-anchor="end">No speculation</text>
+<text x="234" y="263" class="muted" font-size="12" text-anchor="end">plain decoding</text>
+<path d="M250.0,236.0 H398.0 Q402.0,236.0 402.0,240.0 V254.0 Q402.0,258.0 398.0,258.0 H250.0 Z" class="bar"/>
+<text x="410.0" y="252" class="num" font-size="14"><tspan class="ink" font-weight="600">1.00×</tspan><tspan class="muted" font-size="12" dx="6">59 tok/s</tspan></text>
+<text x="0" y="333" class="muted" font-size="12">Best setting per method · higher is better · accept rates and per-category numbers in results/</text>
+</svg>

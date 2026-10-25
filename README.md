@@ -44,83 +44,101 @@ The published speedups come from servers and high-end NVIDIA cards. This project
 
 ## 2. Results
 
+<!-- RESULTS:START -->
+**One card, two backends:** AMD Radeon RX 7900 GRE 16 GB, Qwen3-8B Q8_0, 32 prompts per setting.
+
+| | Vulkan | ROCm |
+|---|---|---|
+| No speculation | 62 tok/s | 59 tok/s |
+| **DSpark, best setting** | 115 tok/s · 1.86× · drafts 3 tokens | **133 tok/s · 2.25× · drafts 7 tokens** |
+| DFlash | 95 tok/s · 1.54× | 110 tok/s · 1.86× |
+| Small draft model (Qwen3-0.6B) | 84 tok/s · 1.36× | 76 tok/s · 1.29× |
+
+- **DSpark is the fastest method on both backends.** ROCm with DSpark is the fastest setup overall, at
+  133 tok/s, 2.25× plain decoding. n-gram lookup does almost nothing on these prompts (1.02×).
+- **The best draft length depends on the backend.** Vulkan is fastest with 3-token drafts and drops to 1.63×
+  with 7. ROCm is the opposite: fastest with 7 and only 1.85× with 3. The likely reason is that ROCm checks
+  a block of drafted tokens more cheaply: it processes prompts 24% faster, while plain decoding is slightly
+  slower. **Any fixed setting gives up 13–18% on one backend**, which is the case for drafts that adapt their length.
+- **The confidence cutoff helps only a little.** On Vulkan, `--spec-draft-p-min 0.3` adds about 3%, and
+  cutoffs of 0.5 and above make it slower. At 0.9 it drops to 1.28×.
+- **Keep the drafter at Q8_0.** The BF16 drafter was slower (1.55× vs 1.72× at 4 tokens) and no more accurate.
+- **Prompt processing barely suffers:** about 8–9% slower with the drafter loaded, on both backends.
+- **The gain depends on the task:** coding gains the most (2.3× on Vulkan, 3.2× on ROCm), Q&A the least (1.5–1.6×).
+
 <p align="center">
-  <img src="assets/speedup.svg" width="90%" alt="Decode speedup per speculative method" />
+  <img src="assets/speedup-rocm.svg" width="90%" alt="Decode speedup per method on ROCm" />
+  <br><br>
+  <img src="assets/speedup-vulkan.svg" width="90%" alt="Decode speedup per method on Vulkan" />
 </p>
 
-<!-- RESULTS:START -->
-**AMD Radeon RX 7900 GRE 16 GB · Vulkan · Qwen3-8B Q8_0 · 32 prompts per setting**
-
-- **DSpark is the fastest method: 1.86×**, 115 instead of 62 tokens/s. DFlash reaches 1.54× and a classic
-  small draft model 1.36×. n-gram lookup does almost nothing on these prompts (1.02× in the quick screen).
-- **Draft 3 tokens, not 7.** The drafters are trained on 7-token blocks and llama.cpp's docs use
-  `--spec-draft-n-max 7`, but on this GPU that gives 1.63×. Three tokens is **14% faster**.
-- **The confidence cutoff helps only a little.** `--spec-draft-p-min 0.3` adds about 3% (1.81× → 1.86×), in
-  both the screen and the full run. Cutoffs of 0.5 and above make it slower, and 0.9 drops it to 1.28×.
-- **Keep the drafter at Q8_0.** The BF16 drafter was *slower* (1.55× vs 1.72× at 4 tokens in the screen)
-  and no more accurate.
-- **Prompt processing barely suffers:** about 8% slower with the drafter loaded.
-- **The gain depends on the task:** coding 2.3×, math 1.9×, writing 1.8×, Q&A 1.5×.
-
-The fastest command on this machine:
+The fastest commands on this machine:
 
 ```bash
-llama-server -m Qwen3-8B-Q8_0.gguf -md dspark-Qwen3-8B-Q8_0.gguf --spec-type draft-dspark \
-    --spec-draft-n-max 3 --spec-draft-p-min 0.3 -ngl all -ngld all -fa on --device Vulkan0
+# ROCm: needs the ROCm libraries (setup_windows.ps1 -Backend rocm installs them)
+llama-server -m Qwen3-8B-Q8_0.gguf -md dspark-Qwen3-8B-Q8_0.gguf --spec-type draft-dspark --spec-draft-n-max 7 -ngl all -ngld all -fa on --device ROCm1
+# Vulkan
+llama-server -m Qwen3-8B-Q8_0.gguf -md dspark-Qwen3-8B-Q8_0.gguf --spec-type draft-dspark --spec-draft-n-max 3 --spec-draft-p-min 0.3 -ngl all -ngld all -fa on --device Vulkan0
 ```
 
 > [!NOTE]
-> One GPU, one model and greedy decoding so far, with 8 prompts per category. Treat differences under
-> about 3% as noise. Other GPUs may prefer other settings, which is exactly what [contributed results](#5-contribute-your-gpu) will show.
+> One GPU, one model and greedy decoding so far, with 8 prompts per category. Treat differences under about 3%
+> as noise. The 21-setting quick screen, which includes the cutoff and BF16 results, ran on Vulkan only. ROCm was
+> measured at draft lengths 3, 5 and 7. Other GPUs may prefer other settings, which is exactly what
+> [contributed results](#5-contribute-your-gpu) will show.
 <!-- RESULTS:END -->
 
-Full tables: [all measured settings](results/rx7900gre-win11/qwen3-8b__vulkan.md) and the
-[quick screen of 21 settings](results/rx7900gre-win11/qwen3-8b-screen__vulkan.md), with per-category speedups
-and acceptance rates.
+Full tables, with per-category speedups and acceptance rates: [Vulkan](results/rx7900gre-win11/qwen3-8b__vulkan.md),
+[ROCm](results/rx7900gre-win11/qwen3-8b__rocm.md) and the [Vulkan quick screen](results/rx7900gre-win11/qwen3-8b-screen__vulkan.md).
 
 ## 3. Quick Start
 
-**Windows** (PowerShell 7, Python 3.10+, git, about 15 GB of disk):
+You need Python 3.10+, git and about 15 GB of disk. The setup script downloads a prebuilt llama.cpp, so
+there's nothing to compile.
 
-```powershell
-git clone https://github.com/juraj-jumic/dspark-local-bench; cd dspark-local-bench
-.\scripts\setup_windows.ps1 -Backend vulkan        # or rocm / cuda: downloads prebuilt llama.cpp, no compiler needed
-.venv\Scripts\Activate.ps1
-python scripts\fetch_models.py configs\qwen3-8b.json
-```
+**1. Set up** for your system and GPU:
 
-Then a two-minute smoke test, and the real run:
-
-```powershell
-python scripts\run_matrix.py --config configs\qwen3-8b.json --backend vulkan --machine my-gpu `
-    --server-args "--device Vulkan0" --only baseline,dspark-n7-p0 --limit 1
-python scripts\run_matrix.py --config configs\qwen3-8b.json --backend vulkan --machine my-gpu --server-args "--device Vulkan0"
-python scripts\summarize.py --write
-```
-
-> [!TIP]
-> Run `bin\vulkan\llama-server.exe --list-devices` first. If an integrated GPU shows up next to your graphics
-> card, keep `--device Vulkan0` (or whichever is the real card), or llama.cpp may split the model across both.
-
-<details>
-<summary><b>Linux / macOS</b></summary>
-
-Build llama.cpp at the pinned tag with your backend ([build docs](https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md)):
+| System | GPU | Command |
+|---|---|---|
+| Windows (PowerShell 7) | any (AMD, Intel, NVIDIA) | `.\scripts\setup_windows.ps1 -Backend vulkan` |
+| Windows (PowerShell 7) | NVIDIA | `.\scripts\setup_windows.ps1 -Backend cuda` |
+| Windows (PowerShell 7) | AMD Radeon (tested: RX 7900 GRE) | `.\scripts\setup_windows.ps1 -Backend rocm` (adds about 3 GB of AMD libraries) |
+| Linux | any | `./scripts/setup_unix.sh vulkan` |
+| Linux | NVIDIA / AMD | `./scripts/setup_unix.sh cuda` or `rocm` (ROCm must be installed on the system) |
+| macOS (Apple Silicon) | built-in | `./scripts/setup_unix.sh metal` |
 
 ```bash
-git clone https://github.com/juraj-jumic/dspark-local-bench && cd dspark-local-bench
-git clone --depth 1 --branch b11865 https://github.com/ggml-org/llama.cpp
-cmake -S llama.cpp -B llama.cpp/build -DGGML_CUDA=ON   # or -DGGML_VULKAN=ON / -DGGML_HIP=ON; Metal is the default on macOS
-cmake --build llama.cpp/build --config Release -j
-python -m venv .venv && . .venv/bin/activate
-pip install -r llama.cpp/tools/server/bench/speed-bench/requirements.txt huggingface_hub
+git clone https://github.com/juraj-jumic/dspark-local-bench
+cd dspark-local-bench
+# run your setup command from the table, then activate the environment:
+.venv\Scripts\Activate.ps1          # Windows
+. .venv/bin/activate                # Linux / macOS
 python scripts/fetch_models.py configs/qwen3-8b.json
-python scripts/run_matrix.py --config configs/qwen3-8b.json --backend cuda --machine my-gpu \
-    --server llama.cpp/build/bin/llama-server
-python scripts/summarize.py --write
 ```
 
-</details>
+**2. Pick your GPU.** The setup prints the devices llama.cpp sees, for example:
+
+```text
+Vulkan0: AMD Radeon RX 7900 GRE (16368 MiB)
+Vulkan1: AMD Radeon(TM) Graphics          <- integrated GPU, don't use
+```
+
+> [!IMPORTANT]
+> If an integrated GPU is listed next to your graphics card, pass the card with `--device`, or llama.cpp may
+> split the model across both. **The numbering can change between backends:** on the machine above, the
+> same card is `Vulkan0` but `ROCm1`. On a Mac, or with a single GPU, leave `--server-args` out.
+
+**3. Run** a two-minute smoke test, then the full matrix (about 2 hours; finished settings are skipped if you restart):
+
+```bash
+python scripts/run_matrix.py --config configs/qwen3-8b.json --backend vulkan --machine my-gpu --server-args "--device Vulkan0" --only baseline,dspark-n7-p0 --limit 1
+python scripts/run_matrix.py --config configs/qwen3-8b.json --backend vulkan --machine my-gpu --server-args "--device Vulkan0"
+python scripts/summarize.py --write
+python scripts/plot.py results/my-gpu/qwen3-8b__vulkan.json -o my-chart.svg
+```
+
+Use the same `--backend` name you set up (`vulkan`, `cuda`, `rocm` or `metal`): it tells the script which
+`bin/` folder to use.
 
 <details>
 <summary><b>Short on time?</b> Screen first, then measure the winners</summary>
@@ -129,10 +147,8 @@ The full matrix generates about 13,000 tokens for each of its 33 settings, so it
 60 tok/s GPU. A quick screen with 2 prompts per category and 256-token answers is enough to rule out the
 clear losers in about 10 minutes:
 
-```powershell
-python scripts\run_matrix.py --config configs\qwen3-8b.json --backend vulkan --machine my-gpu `
-    --server-args "--device Vulkan0" --name qwen3-8b-screen --limit 2 --osl 256 `
-    --only "baseline,ngram-mod,draft-simple-*,dflash-*,dspark-n*-p0,dspark-bf16-*"
+```bash
+python scripts/run_matrix.py --config configs/qwen3-8b.json --backend vulkan --machine my-gpu --server-args "--device Vulkan0" --name qwen3-8b-screen --limit 2 --osl 256 --only "baseline,ngram-mod,draft-simple-*,dflash-*,dspark-n*-p0,dspark-bf16-*"
 ```
 
 Then run the best few at full size with `--only baseline,<run ids>` (no `--name`, `--limit` or `--osl`).

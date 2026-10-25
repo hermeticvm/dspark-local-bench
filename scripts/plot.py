@@ -27,6 +27,8 @@ FAMILIES = [
     (r"^dspark-n(?P<n>\d+)-p(?P<p>[\d.]+)$", "DSpark", "drafts {n} tokens{cutoff}"),
 ]
 
+BACKEND_NAMES = {"vulkan": "Vulkan", "rocm": "ROCm", "cuda": "CUDA", "metal": "Metal", "cpu": "CPU"}
+
 STYLE = """
   .surface { fill: none; }
   .ink { fill: #0b0b0b; } .ink2 { fill: #52514e; } .muted { fill: #6f6d68; }
@@ -63,6 +65,12 @@ def best_per_family(runs: dict) -> list[dict]:
             if name not in best or row["t_s"] > best[name]["t_s"]:
                 best[name] = row
             break
+    # the docs setting only gets its own bar when tuning beat it; otherwise it is the DSpark bar
+    docs = best.pop("DSpark, docs example", None)
+    if docs and ("DSpark" not in best or docs["t_s"] >= best["DSpark"]["t_s"]):
+        best["DSpark"] = {**docs, "name": "DSpark"}
+    elif docs:
+        best[docs["name"]] = docs
     return sorted(best.values(), key=lambda r: r["t_s"], reverse=True)
 
 
@@ -85,7 +93,8 @@ def render(record: dict, rows: list[dict]) -> str:
     meta = record["meta"]
     build = re.search(r"build (\d+)", meta.get("llama_cpp_version", ""))
     model = Path(meta["target"]).stem
-    subtitle = (f"{model} · {meta['gpu']} · {meta['backend'].capitalize()} · "
+    backend = BACKEND_NAMES.get(meta["backend"], meta["backend"])
+    subtitle = (f"{model} · {meta['gpu']} · {backend} · "
                 f"llama.cpp {'b' + build.group(1) if build else meta.get('llama_cpp_version', '')} · one user, greedy")
 
     width, left, right = 760, 250, 130
